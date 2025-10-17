@@ -1,0 +1,60 @@
+{
+  "name": "Chris Pincel Mágico",
+  "description": "Sistema de agendamento de serviços de beleza com Laravel 11",
+  "keywords": ["laravel", "php", "mysql", "beauty", "appointments"],
+  "env": {
+    "APP_NAME": {
+      "description": "Nome da aplicação",
+      "value": "Chris Pincel Mágico"
+    },
+    "APP_ENV": {
+      "description": "Ambiente da aplicação",
+      "value": "production"
+    },
+    "APP_DEBUG": {
+      "description": "Debug mode (true/false)",
+      "value": "false"
+    },
+    "APP_KEY": {
+      "description": "Application key (gerar com: php artisan key:generate --show)",
+      "value": "base64:wJkrCXuxPA1vqcEkigjseIhoTIou/4cBxZ12oehOy2M="
+    },
+    "APP_URL": {
+      "description": "URL da aplicação",
+      "value": "https://${{RAILWAY_PUBLIC_DOMAIN}}"
+    },
+    "DB_CONNECTION": {
+      "description": "Database connection",
+      "value": "mysql"
+    },
+    "DB_HOST": {
+      "description": "Database host",
+      "value": "${{MYSQL_HOST}}"
+    },
+    "DB_PORT": {
+      "description": "Database port",
+      "value": "${{MYSQL_PORT}}"
+    },
+    "DB_DATABASE": {
+      "description": "Database name",
+      "value": "${{MYSQL_DATABASE}}"
+    },
+    "DB_USERNAME": {
+      "description": "Database username",
+      "value": "${{MYSQL_USER}}"
+    },
+    "DB_PASSWORD": {
+      "description": "Database password",
+      "value": "${{MYSQL_PASSWORD}}"
+    },
+    "SESSION_DRIVER": {
+      "value": "database"
+    },
+    "CACHE_STORE": {
+      "value": "file"
+    },
+    "QUEUE_CONNECTION": {
+      "value": "database"
+    }
+  }
+}

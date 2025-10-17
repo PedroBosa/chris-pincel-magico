@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+@theme {
+  /* Paleta de Cores Chris Pincel Mágico */
+  --color-rose-metallic: #B57B7B;
+  --color-rose-light: #E0A3A3;
+  --color-copper-soft: #F3D0D0;
+  --color-copper-lighter: #F8E8E8;
+  --color-mint-accent: #C0E0E0;
+  --color-mint-light: #A4D8D8;
+  --color-dark: #1A1A1A;
+  --color-pure-white: #FFFFFF;
+
+  /* Customizações do Tailwind */
+  --color-primary-500: var(--color-rose-metallic);
+  --color-primary-400: var(--color-rose-light);
+  --color-primary-200: var(--color-copper-soft);
+  --color-primary-100: var(--color-copper-lighter);
+  
+  --color-accent-500: var(--color-mint-accent);
+  --color-accent-400: var(--color-mint-light);
+  
+  --color-neutral-900: var(--color-dark);
+  --color-neutral-50: var(--color-pure-white);
+}
+
+/* Utilitários customizados */
+.bg-brand-rose {
+  background: linear-gradient(135deg, #B57B7B 0%, #E0A3A3 100%);
+}
+
+.text-brand-gradient {
+  background: linear-gradient(135deg, #B57B7B 0%, #E0A3A3 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.border-brand-gradient {
+  position: relative;
+  background: linear-gradient(135deg, #B57B7B 0%, #E0A3A3 100%);
+  -webkit-mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  padding: 2px;
+}
