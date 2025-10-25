@@ -195,7 +195,11 @@
             </div>
 
             <!-- Agendamentos Recentes -->
-            @if($cliente->agendamentos_count > 0)
+            @php
+                $agendamentosRecentes = $cliente->getRelation('recentAgendamentos') ?? collect();
+            @endphp
+
+            @if($cliente->agendamentos_count > 0 && $agendamentosRecentes->isNotEmpty())
                 <div>
                     <h5 class="font-bold text-neutral-900 mb-3 flex items-center gap-2">
                         <svg class="w-5 h-5 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -204,7 +208,7 @@
                         Últimos Agendamentos
                     </h5>
                     <div class="space-y-2 max-h-64 overflow-y-auto">
-                        @foreach($cliente->agendamentos()->latest()->take(5)->get() as $agendamento)
+                        @foreach($agendamentosRecentes as $agendamento)
                             <div class="p-3 bg-neutral-50 rounded-lg flex items-center justify-between">
                                 <div class="flex-1">
                                     <div class="font-medium text-neutral-900">{{ $agendamento->servico->nome ?? 'N/A' }}</div>

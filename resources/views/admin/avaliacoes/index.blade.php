@@ -127,88 +127,85 @@
             @foreach($avaliacoes as $avaliacao)
                 <div class="bg-white rounded-xl shadow-sm border border-neutral-200 overflow-hidden hover:shadow-md transition-shadow">
                     <div class="p-6">
-                        <div class="flex items-start justify-between gap-4 mb-4">
-                            <!-- Cliente Info -->
-                            <div class="flex items-start gap-4 flex-1">
-                                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-primary-500 to-primary-400 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
-                                    {{ strtoupper(substr($avaliacao->cliente->name ?? 'A', 0, 1)) }}
+                        <div class="flex flex-col gap-6 md:grid md:grid-cols-[minmax(0,1fr)_11rem] md:gap-6 md:items-start">
+                            <!-- Cliente e conteúdo -->
+                            <div class="flex flex-col gap-4">
+                                <div class="flex items-start gap-4">
+                                    <div class="w-12 h-12 rounded-full bg-gradient-to-br from-primary-500 to-primary-400 flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+                                        {{ strtoupper(substr($avaliacao->cliente->name ?? 'A', 0, 1)) }}
+                                    </div>
+                                    <div class="flex-1 space-y-3">
+                                        <div class="flex flex-wrap items-center gap-3">
+                                            <h3 class="text-lg font-bold text-neutral-900">
+                                                {{ $avaliacao->cliente->name ?? 'Cliente removido' }}
+                                            </h3>
+                                            @if($avaliacao->publicado)
+                                                <span class="px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-full">
+                                                    Publicada
+                                                </span>
+                                            @else
+                                                <span class="px-3 py-1 bg-amber-100 text-amber-700 text-xs font-semibold rounded-full">
+                                                    Pendente
+                                                </span>
+                                            @endif
+                                        </div>
+
+                                        <div class="flex flex-wrap items-center gap-2 text-sm text-neutral-600">
+                                            <div class="flex items-center gap-2">
+                                                <div class="flex gap-0.5">
+                                                    @for($i = 1; $i <= 5; $i++)
+                                                        <svg class="w-5 h-5 {{ $i <= $avaliacao->nota ? 'text-yellow-400' : 'text-neutral-300' }}" fill="currentColor" viewBox="0 0 20 20">
+                                                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                                        </svg>
+                                                    @endfor
+                                                </div>
+                                                <span class="font-semibold">{{ $avaliacao->nota }}.0</span>
+                                            </div>
+                                            <span class="hidden md:inline">·</span>
+                                            <span><span class="font-medium">Serviço:</span> {{ $avaliacao->agendamento->servico->nome ?? 'Serviço removido' }}</span>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="flex-1">
-                                    <div class="flex items-center gap-3 mb-2">
-                                        <h3 class="text-lg font-bold text-neutral-900">
-                                            {{ $avaliacao->cliente->name ?? 'Cliente removido' }}
-                                        </h3>
-                                        @if($avaliacao->publicado)
-                                            <span class="px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-full">
-                                                Publicada
-                                            </span>
-                                        @else
-                                            <span class="px-3 py-1 bg-amber-100 text-amber-700 text-xs font-semibold rounded-full">
-                                                Pendente
-                                            </span>
-                                        @endif
-                                    </div>
-                                    
-                                    <!-- Estrelas -->
-                                    <div class="flex items-center gap-2 mb-3">
-                                        <div class="flex gap-0.5">
-                                            @for($i = 1; $i <= 5; $i++)
-                                                <svg class="w-5 h-5 {{ $i <= $avaliacao->nota ? 'text-yellow-400' : 'text-neutral-300' }}" fill="currentColor" viewBox="0 0 20 20">
-                                                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                                                </svg>
-                                            @endfor
-                                        </div>
-                                        <span class="text-sm font-semibold text-neutral-600">{{ $avaliacao->nota }}.0</span>
-                                    </div>
 
-                                    <!-- Serviço -->
-                                    <p class="text-sm text-neutral-600 mb-3">
-                                        <span class="font-medium">Serviço:</span> 
-                                        {{ $avaliacao->agendamento->servico->nome ?? 'Serviço removido' }}
-                                    </p>
+                                @if($avaliacao->comentario)
+                                    <div class="bg-neutral-50 rounded-lg p-4 border border-neutral-200">
+                                        <p class="text-neutral-700 leading-relaxed">{{ $avaliacao->comentario }}</p>
+                                    </div>
+                                @else
+                                    <p class="text-neutral-400 italic">Sem comentário</p>
+                                @endif
 
-                                    <!-- Comentário -->
-                                    @if($avaliacao->comentario)
-                                        <div class="bg-neutral-50 rounded-lg p-4 border-l-4 border-primary-400">
-                                            <p class="text-neutral-700 leading-relaxed">{{ $avaliacao->comentario }}</p>
-                                        </div>
-                                    @else
-                                        <p class="text-neutral-400 italic">Sem comentário</p>
+                                <p class="text-xs text-neutral-500">
+                                    Avaliado em {{ $avaliacao->created_at->format('d/m/Y \às H:i') }}
+                                    @if($avaliacao->publicado && $avaliacao->publicado_em)
+                                        · Publicado em {{ $avaliacao->publicado_em->format('d/m/Y') }}
                                     @endif
-
-                                    <!-- Data -->
-                                    <p class="text-xs text-neutral-500 mt-3">
-                                        Avaliado em {{ $avaliacao->created_at->format('d/m/Y \à\s H:i') }}
-                                        @if($avaliacao->publicado && $avaliacao->publicado_em)
-                                            · Publicado em {{ $avaliacao->publicado_em->format('d/m/Y') }}
-                                        @endif
-                                    </p>
-                                </div>
+                                </p>
                             </div>
 
                             <!-- Ações -->
-                            <div class="flex flex-col gap-2">
+                            <div class="flex flex-col gap-2 border-t border-neutral-200 pt-4 md:border-t-0 md:border-l md:border-neutral-200 md:pt-0 md:pl-4">
                                 @if(!$avaliacao->publicado)
-                                    <form method="POST" action="{{ route('admin.avaliacoes.update', $avaliacao) }}">
+                                    <form method="POST" action="{{ route('admin.avaliacoes.update', $avaliacao) }}" class="w-full">
                                         @csrf
                                         @method('PUT')
                                         <input type="hidden" name="publicado" value="1">
                                         <button 
                                             type="submit"
-                                            class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-semibold transition-colors whitespace-nowrap"
+                                            class="w-full px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-semibold transition-colors text-center"
                                             title="Publicar avaliação"
                                         >
                                             Publicar
                                         </button>
                                     </form>
                                 @else
-                                    <form method="POST" action="{{ route('admin.avaliacoes.update', $avaliacao) }}">
+                                    <form method="POST" action="{{ route('admin.avaliacoes.update', $avaliacao) }}" class="w-full">
                                         @csrf
                                         @method('PUT')
                                         <input type="hidden" name="publicado" value="0">
                                         <button 
                                             type="submit"
-                                            class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-semibold transition-colors whitespace-nowrap"
+                                            class="w-full px-4 py-2 bg-white text-amber-600 border border-amber-500 hover:bg-amber-50 hover:text-amber-700 rounded-lg text-sm font-semibold transition-colors text-center"
                                             title="Despublicar avaliação"
                                         >
                                             Despublicar
@@ -220,12 +217,13 @@
                                     method="POST" 
                                     action="{{ route('admin.avaliacoes.destroy', $avaliacao) }}"
                                     onsubmit="return confirm('Tem certeza que deseja excluir esta avaliação?')"
+                                    class="w-full"
                                 >
                                     @csrf
                                     @method('DELETE')
                                     <button 
                                         type="submit"
-                                        class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-semibold transition-colors whitespace-nowrap"
+                                        class="w-full px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-semibold transition-colors text-center"
                                         title="Excluir avaliação"
                                     >
                                         Excluir

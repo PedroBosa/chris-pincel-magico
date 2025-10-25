@@ -3,6 +3,7 @@
 namespace Tests\Unit\Services;
 
 use App\Models\Agendamento;
+use App\Models\Configuracao;
 use App\Models\Pagamento;
 use App\Services\PagamentoService;
 use Carbon\Carbon;
@@ -90,5 +91,56 @@ class PagamentoServiceTest extends TestCase
         $this->assertEquals(60.0, (float) $cobranca->valor_total);
         $this->assertEquals('DUE', $cobranca->status);
         $this->assertEquals('manual', $cobranca->gateway);
+    }
+
+    public function test_nao_regride_status_apos_estorno(): void
+    {
+        $agendamento = Agendamento::factory()->create([
+            'status' => 'CANCELADO',
+            'pagamento_confirmado' => false,
+        ]);
+
+        $pagamento = Pagamento::factory()->create([
+            'agendamento_id' => $agendamento->id,
+            'status' => 'REFUNDED',
+            'valor_total' => 100,
+            'valor_capturado' => 0,
+        ]);
+
+        $service = new PagamentoService();
+
+        $resultado = $service->confirmarPagamento($pagamento->referencia_gateway, [
+            'status' => 'paid',
+            'valor_capturado' => 100,
+        ]);
+
+        $pagamento->refresh();
+        $agendamento->refresh();
+
+        $this->assertNotNull($resultado);
+        $this->assertEquals('REFUNDED', $pagamento->status);
+        $this->assertFalse($agendamento->pagamento_confirmado);
+        $this->assertEquals('REFUNDED', $resultado->status);
+        $this->assertEquals(0.0, (float) $pagamento->valor_capturado);
+    }
+
+    public function test_taxa_cancelamento_utiliza_configuracao(): void
+    {
+        Configuracao::create([
+            'chave' => 'taxa_cancelamento_percentual',
+            'valor' => ['valor' => 25],
+        ]);
+
+        $agendamento = Agendamento::factory()->create([
+            'valor_sinal' => 80,
+        ]);
+
+        $service = new PagamentoService();
+
+        $cobranca = $service->cobrarTaxaCancelamento($agendamento);
+
+        $this->assertNotNull($cobranca);
+        $this->assertEquals(20.0, (float) $cobranca->valor_total);
+        $this->assertEquals(25.0, (float) $cobranca->payload['percentual_aplicado']);
     }
 }

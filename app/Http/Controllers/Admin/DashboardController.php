@@ -32,7 +32,12 @@ class DashboardController extends Controller
         $totalClientes = User::where('is_admin', false)->count();
 
         // Próximos Agendamentos (próximos 5 dias)
-        $proximosAgendamentos = Agendamento::with(['usuario', 'servico'])
+        $proximosAgendamentos = Agendamento::query()
+            ->select(['id', 'user_id', 'servico_id', 'status', 'data_hora_inicio'])
+            ->with([
+                'usuario:id,name',
+                'servico:id,nome,preco'
+            ])
             ->where('data_hora_inicio', '>=', now())
             ->where('status', '!=', 'CANCELADO')
             ->orderBy('data_hora_inicio')
@@ -40,7 +45,9 @@ class DashboardController extends Controller
             ->get();
 
         // Serviços Populares (top 5 mais agendados)
-        $servicosPopulares = Servico::withCount(['agendamentos' => function ($query) {
+        $servicosPopulares = Servico::query()
+            ->select(['id', 'nome', 'preco'])
+            ->withCount(['agendamentos' => function ($query) {
                 $query->where('status', '!=', 'CANCELADO');
             }])
             ->orderBy('agendamentos_count', 'desc')

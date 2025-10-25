@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Pagamento;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class FinanceiroController extends Controller
 {
@@ -16,10 +17,21 @@ class FinanceiroController extends Controller
         // Filtros
         $mes = $request->get('mes', now()->month);
         $ano = $request->get('ano', now()->year);
-        $status = $request->get('status');
+        $statusFiltro = $request->get('status');
+        $statusNormalizado = $statusFiltro ? Str::upper($statusFiltro) : null;
 
         // Query base
-        $query = Pagamento::with(['agendamento.usuario', 'agendamento.servico']);
+        $query = Pagamento::query()
+            ->select(['id', 'agendamento_id', 'status', 'valor_total', 'valor_capturado', 'forma_pagamento', 'gateway', 'created_at'])
+            ->with([
+                'agendamento' => function ($agendamentoQuery) {
+                    $agendamentoQuery->select(['id', 'user_id', 'servico_id', 'data_hora_inicio'])
+                        ->with([
+                            'usuario:id,name,email',
+                            'servico:id,nome'
+                        ]);
+                }
+            ]);
 
         // Aplicar filtros
         if ($mes && $ano) {
@@ -27,8 +39,8 @@ class FinanceiroController extends Controller
                   ->whereYear('created_at', $ano);
         }
 
-        if ($status) {
-            $query->where('status', $status);
+        if ($statusNormalizado) {
+            $query->where('status', $statusNormalizado);
         }
 
         $pagamentos = $query->latest('created_at')->paginate(30);
@@ -36,7 +48,7 @@ class FinanceiroController extends Controller
         // Estatísticas do mês atual
         $totalMes = Pagamento::whereMonth('created_at', $mes)
             ->whereYear('created_at', $ano)
-            ->where('status', 'approved')
+            ->whereIn('status', ['PAID', 'APPROVED'])
             ->sum('valor_capturado');
 
         $totalPagamentos = Pagamento::whereMonth('created_at', $mes)
@@ -46,10 +58,10 @@ class FinanceiroController extends Controller
         $ticketMedio = $totalPagamentos > 0 ? $totalMes / $totalPagamentos : 0;
 
         // Pagamentos pendentes
-        $pagamentosPendentes = Pagamento::where('status', 'pending')->count();
+        $pagamentosPendentes = Pagamento::where('status', 'PENDING')->count();
 
         // Total capturado (todos os tempos)
-        $totalCapturado = Pagamento::where('status', 'approved')
+        $totalCapturado = Pagamento::whereIn('status', ['PAID', 'APPROVED'])
             ->sum('valor_capturado');
 
         // Métodos de pagamento mais usados
@@ -59,6 +71,8 @@ class FinanceiroController extends Controller
             ->orderBy('total', 'desc')
             ->take(5)
             ->get();
+
+        $status = $statusFiltro;
 
         return view('admin.financeiro.index', compact(
             'pagamentos',

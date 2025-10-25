@@ -17,7 +17,11 @@ class AgendaController extends Controller
             : now();
 
         $agendamentos = Agendamento::query()
-            ->with(['cliente', 'servico'])
+            ->select(['id', 'user_id', 'servico_id', 'status', 'data_hora_inicio', 'data_hora_fim'])
+            ->with([
+                'cliente:id,name,email,telefone',
+                'servico:id,nome,duracao_minutos'
+            ])
             ->whereDate('data_hora_inicio', $data->format('Y-m-d'))
             ->orderBy('data_hora_inicio')
             ->get();
@@ -44,7 +48,11 @@ class AgendaController extends Controller
 
         // Busca agendamentos de toda a semana
         $agendamentosSemana = Agendamento::query()
-            ->with(['cliente', 'servico'])
+            ->select(['id', 'user_id', 'servico_id', 'status', 'data_hora_inicio', 'data_hora_fim'])
+            ->with([
+                'cliente:id,name,email,telefone',
+                'servico:id,nome,duracao_minutos'
+            ])
             ->whereBetween('data_hora_inicio', [$inicioSemana, $fimSemana])
             ->orderBy('data_hora_inicio')
             ->get();

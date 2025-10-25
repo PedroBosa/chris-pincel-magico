@@ -45,33 +45,56 @@ class PagamentoService
      */
     public function confirmarPagamento(string $referenciaGateway, array $payload = []): ?Pagamento
     {
-        /** @var Pagamento|null $pagamento */
-        $pagamento = Pagamento::query()
-            ->where('referencia_gateway', $referenciaGateway)
-            ->lockForUpdate()
-            ->first();
+        return DB::transaction(function () use ($referenciaGateway, $payload) {
+            /** @var Pagamento|null $pagamento */
+            $pagamento = Pagamento::query()
+                ->where('referencia_gateway', $referenciaGateway)
+                ->lockForUpdate()
+                ->first();
 
-        if (! $pagamento) {
-            return null;
-        }
+            if (! $pagamento) {
+                return null;
+            }
 
-        DB::transaction(function () use ($pagamento, $payload) {
-            $valorCapturado = Arr::get($payload, 'valor_capturado', $pagamento->valor_total);
+            $statusAtual = strtoupper((string) $pagamento->status);
+            $novoStatus = strtoupper((string) Arr::get($payload, 'status', 'PAID'));
 
-            $pagamento->update([
-                'status' => strtoupper(Arr::get($payload, 'status', 'PAID')),
-                'valor_capturado' => $valorCapturado,
+            $prioridadeAtual = $this->statusPriority($statusAtual);
+            $prioridadeNova = $this->statusPriority($novoStatus);
+
+            if ($prioridadeAtual > 0 && $prioridadeNova > 0 && $prioridadeNova < $prioridadeAtual) {
+                return $pagamento->fresh(['agendamento']);
+            }
+
+            $valorCapturado = Arr::get(
+                $payload,
+                'valor_capturado',
+                $pagamento->valor_capturado ?? $pagamento->valor_total
+            );
+
+            $pagamento->fill([
+                'status' => $novoStatus,
+                'valor_capturado' => is_numeric($valorCapturado) ? $valorCapturado : $pagamento->valor_capturado,
                 'payload' => $payload,
-                'pago_em' => Carbon::now(),
             ]);
 
-            $pagamento->agendamento->update([
-                'pagamento_confirmado' => true,
-                'status' => $pagamento->agendamento->status === 'PENDENTE' ? 'CONFIRMADO' : $pagamento->agendamento->status,
-            ]);
+            if ($this->statusIndicaPagamentoConfirmado($novoStatus) && ! $pagamento->pago_em) {
+                $pagamento->pago_em = Carbon::now();
+            }
+
+            $pagamento->save();
+
+            $agendamento = $pagamento->agendamento;
+
+            if ($agendamento && $this->statusIndicaPagamentoConfirmado($novoStatus)) {
+                $agendamento->update([
+                    'pagamento_confirmado' => true,
+                    'status' => $agendamento->status === 'PENDENTE' ? 'CONFIRMADO' : $agendamento->status,
+                ]);
+            }
+
+            return $pagamento->fresh(['agendamento']);
         });
-
-        return $pagamento->fresh(['agendamento']);
     }
 
     /**
@@ -100,7 +123,8 @@ class PagamentoService
      */
     public function cobrarTaxaCancelamento(Agendamento $agendamento, ?float $percentualOverride = null): ?Pagamento
     {
-        $percentual = $percentualOverride ?? Arr::get(Configuracao::get('taxa_cancelamento_percentual', ['valor' => 100]), 'valor', 100);
+        $percentualConfigurado = Configuracao::get('taxa_cancelamento_percentual', 100);
+        $percentual = $percentualOverride ?? (is_numeric($percentualConfigurado) ? (float) $percentualConfigurado : 100);
         $valor = round($agendamento->valor_sinal * ($percentual / 100), 2);
 
         if ($valor <= 0) {
@@ -127,5 +151,24 @@ class PagamentoService
     {
         // Apenas para prototipagem. Integração real deve ser fornecida pelo Mercado Pago SDK.
         return sprintf('PIX:%s:%.2f', $pagamento->referencia_gateway, $pagamento->valor_total);
+    }
+
+    private function statusIndicaPagamentoConfirmado(string $status): bool
+    {
+        return in_array($status, ['PAID', 'APPROVED'], true);
+    }
+
+    private function statusPriority(string $status): int
+    {
+        return match ($status) {
+            'PENDING' => 10,
+            'DUE' => 15,
+            'IN_PROCESS', 'AUTHORIZED' => 20,
+            'APPROVED' => 30,
+            'PAID' => 40,
+            'REFUNDED', 'CANCELLED' => 50,
+            'CHARGED_BACK' => 60,
+            default => 0,
+        };
     }
 }

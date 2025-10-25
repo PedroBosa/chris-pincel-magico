@@ -1,5 +1,7 @@
 <?php
 
+use Illuminate\Support\Facades\Cache;
+
 if (! function_exists('config_site')) {
     /**
      * Obtém uma configuração do site do banco de dados
@@ -10,20 +12,36 @@ if (! function_exists('config_site')) {
      */
     function config_site(string $chave, $default = null)
     {
-        static $cache = [];
+        if (! isset($GLOBALS['config_site_runtime']) || ! is_array($GLOBALS['config_site_runtime'])) {
+            $GLOBALS['config_site_runtime'] = Cache::rememberForever('config_site:all', function () {
+                return \App\Models\Configuracao::query()
+                    ->select(['chave', 'valor'])
+                    ->get()
+                    ->mapWithKeys(function ($configuracao) {
+                        $valor = $configuracao->valor;
 
-        if (! isset($cache[$chave])) {
-            $configuracao = \App\Models\Configuracao::where('chave', $chave)->first();
-            
-            if ($configuracao) {
-                $valor = $configuracao->valor;
-                $cache[$chave] = is_array($valor) ? ($valor['valor'] ?? $default) : $valor;
-            } else {
-                $cache[$chave] = $default;
-            }
+                        if (is_array($valor) && array_key_exists('valor', $valor)) {
+                            $valor = $valor['valor'];
+                        }
+
+                        return [$configuracao->chave => $valor];
+                    })
+                    ->toArray();
+            });
         }
 
-        return $cache[$chave];
+        return $GLOBALS['config_site_runtime'][$chave] ?? $default;
+    }
+}
+
+if (! function_exists('config_site_clear_cache')) {
+    /**
+     * Limpa o cache das configurações do site.
+     */
+    function config_site_clear_cache(): void
+    {
+        Cache::forget('config_site:all');
+        unset($GLOBALS['config_site_runtime']);
     }
 }
 

@@ -1,0 +1,57 @@
+services:
+  - type: web
+    name: chris-pincel-magico
+    env: php
+    plan: free
+    buildCommand: |
+      composer install --no-dev --optimize-autoloader
+      npm ci
+      npm run build
+      php artisan event:cache
+      php artisan config:cache
+      php artisan route:cache
+      php artisan view:cache
+      php artisan storage:link || true
+    startCommand: php artisan serve --host 0.0.0.0 --port $PORT
+    postDeployCommand: php artisan migrate --force
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: false
+      - key: APP_NAME
+        value: "Chris Pincel Mágico"
+      - key: APP_TIMEZONE
+        value: America/Fortaleza
+      - key: APP_URL
+        value: https://chris-pincel-magico.onrender.com
+      - key: APP_KEY
+        sync: false
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: LOG_LEVEL
+        value: info
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_URL
+        fromDatabase:
+          name: chris-pincel-magico-db
+          property: connectionString
+      - key: CACHE_DRIVER
+        value: database
+      - key: QUEUE_CONNECTION
+        value: database
+      - key: SESSION_DRIVER
+        value: file
+      - key: FILESYSTEM_DISK
+        value: public
+      - key: VITE_APP_URL
+        value: https://chris-pincel-magico.onrender.com
+    autoDeploy: true
+    healthCheckPath: /
+
+databases:
+  - name: chris-pincel-magico-db
+    plan: free
+    databaseName: chris_pincel
+    user: chris_pincel

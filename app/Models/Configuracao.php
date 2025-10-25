@@ -23,8 +23,20 @@ class Configuracao extends Model
 
     public static function get(string $chave, mixed $default = null): mixed
     {
-        return static::query()
+        $configuracao = static::query()
             ->where('chave', $chave)
-            ->value('valor') ?? $default;
+            ->first();
+
+        if (! $configuracao) {
+            return $default;
+        }
+
+        $valor = $configuracao->valor;
+
+        if (is_array($valor) && array_key_exists('valor', $valor)) {
+            return $valor['valor'];
+        }
+
+        return $valor ?? $default;
     }
 }

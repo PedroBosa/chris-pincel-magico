@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Agendamento;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -15,6 +16,7 @@ class ClienteController extends Controller
         $this->authorize('viewAny', User::class);
 
         $clientes = User::query()
+            ->select(['id', 'name', 'email', 'created_at', 'updated_at'])
             ->withCount('agendamentos')
             ->when($request->filled('search'), function ($query) use ($request) {
                 $term = "%{$request->string('search')}%";
@@ -25,6 +27,29 @@ class ClienteController extends Controller
                 });
             })
             ->paginate(20);
+
+        $clienteIds = $clientes->getCollection()->pluck('id');
+
+        if ($clienteIds->isNotEmpty()) {
+            $recentAgendamentos = Agendamento::query()
+                ->select(['id', 'user_id', 'servico_id', 'status', 'data_hora_inicio'])
+                ->whereIn('user_id', $clienteIds)
+                ->latest('data_hora_inicio')
+                ->with(['servico:id,nome'])
+                ->get()
+                ->groupBy('user_id');
+
+            $clientes->setCollection(
+                $clientes->getCollection()->map(function (User $cliente) use ($recentAgendamentos) {
+                    $cliente->setRelation(
+                        'recentAgendamentos',
+                        $recentAgendamentos->get($cliente->id, collect())->take(5)
+                    );
+
+                    return $cliente;
+                })
+            );
+        }
 
         return view('admin.clientes.index', compact('clientes'));
     }

@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Agendamento;
-use App\Models\Pagamento;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class RelatorioController extends Controller
 {
@@ -15,21 +15,38 @@ class RelatorioController extends Controller
         $inicio = $request->has('inicio')
             ? \Carbon\Carbon::parse($request->input('inicio'))
             : now()->startOfMonth();
-        
+
         $fim = $request->has('fim')
             ? \Carbon\Carbon::parse($request->input('fim'))
             : now();
 
-        $agendamentos = Agendamento::query()
-            ->with(['cliente', 'servico'])
-            ->whereBetween('data_hora_inicio', [$inicio->startOfDay(), $fim->endOfDay()])
+        if ($inicio->greaterThan($fim)) {
+            [$inicio, $fim] = [$fim->copy()->startOfDay(), $inicio->copy()->endOfDay()];
+        }
+
+        $rangeInicio = $inicio->copy()->startOfDay();
+        $rangeFim = $fim->copy()->endOfDay();
+
+        $baseQuery = Agendamento::query()
+            ->whereBetween('data_hora_inicio', [$rangeInicio, $rangeFim]);
+
+        $agendamentos = (clone $baseQuery)
+            ->select(['id', 'user_id', 'servico_id', 'status', 'valor_total', 'data_hora_inicio'])
+            ->with([
+                'cliente:id,name',
+                'servico:id,nome'
+            ])
             ->orderBy('data_hora_inicio')
             ->get();
 
-        // Estatísticas
-        $totalAgendamentos = $agendamentos->count();
-        $agendamentosPorStatus = $agendamentos->groupBy('status')->map->count();
-        $faturamentoTotal = $agendamentos->sum('valor_total');
+        $totalAgendamentos = (clone $baseQuery)->count();
+
+        $agendamentosPorStatus = (clone $baseQuery)
+            ->select('status', DB::raw('COUNT(*) as total'))
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
+        $faturamentoTotal = (clone $baseQuery)->sum('valor_total');
         $ticketMedio = $totalAgendamentos > 0 ? $faturamentoTotal / $totalAgendamentos : 0;
 
         return view('admin.relatorios.index', compact(
