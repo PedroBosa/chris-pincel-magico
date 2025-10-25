@@ -40,5 +40,9 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Pagamento::class, PagamentoPolicy::class);
         Gate::policy(User::class, UserPolicy::class);
         Gate::policy(Configuracao::class, ConfiguracaoPolicy::class);
+
+        if ($this->app->isProduction()) {
+            \Illuminate\Support\Facades\URL::forceScheme('https');
+        }
     }
 }
