@@ -3,6 +3,8 @@ services:
     name: chris-pincel-magico
     env: docker
     plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
     envVars:
       - key: APP_ENV
         value: production
