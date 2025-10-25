@@ -4,9 +4,10 @@
 FROM composer:2 AS vendor
 WORKDIR /app
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
+RUN composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction --no-scripts
 COPY . .
-RUN composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
+RUN mkdir -p storage/framework/{cache,data,sessions,testing,views} storage/app/public storage/logs bootstrap/cache
+RUN composer dump-autoload --optimize --no-interaction --no-scripts
 
 # Stage 2: Build frontend assets with Node
 FROM node:20 AS frontend
@@ -37,7 +38,7 @@ COPY --from=frontend /app/public/build /var/www/html/public/build
 
 # Ensure runtime directories exist and have correct permissions
 RUN rm -f /var/www/html/.env \
-    && mkdir -p storage/framework/{cache,data,sessions,testing,views} storage/app/public bootstrap/cache \
+    && mkdir -p storage/framework/{cache,data,sessions,testing,views} storage/app/public bootstrap/cache storage/logs \
     && chown -R www-data:www-data storage bootstrap/cache
 
 COPY docker/entrypoint.sh /entrypoint.sh
