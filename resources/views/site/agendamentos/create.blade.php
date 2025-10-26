@@ -22,7 +22,7 @@
             </p>
         </div>
 
-        <div class="grid lg:grid-cols-[1fr,400px] gap-8 items-start">
+    <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr),400px] gap-8 items-start">
             <!-- Form Section -->
             <div class="bg-white rounded-3xl p-6 sm:p-8 lg:p-10 border border-primary-100 shadow-xl">
                 <div class="mb-8">
@@ -156,7 +156,7 @@
                             </div>
 
                             <!-- Horários Grid -->
-                            <div id="horarios-grid" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3"></div>
+                            <div id="horarios-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3"></div>
 
                             <!-- Sem horários -->
                             <div id="sem-horarios" class="hidden p-8 text-center bg-amber-50 rounded-xl border-2 border-amber-200">
