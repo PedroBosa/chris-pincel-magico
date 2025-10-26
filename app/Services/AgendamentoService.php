@@ -4,12 +4,136 @@ namespace App\Services;
 
 use App\Models\Agendamento;
 use App\Models\BloqueioHorario;
+use App\Models\Configuracao;
 use App\Models\Disponibilidade;
 use App\Models\Servico;
 use Carbon\Carbon;
+use Illuminate\Support\Arr;
+use InvalidArgumentException;
 
 class AgendamentoService
 {
+    /**
+     * Cria um agendamento considerando regras de retoque, disponibilidade e valores padrão.
+     */
+    public function criarAgendamento(array $dados): Agendamento
+    {
+        $userId = Arr::get($dados, 'user_id');
+        $servicoId = Arr::get($dados, 'servico_id');
+        $dataHoraInicioRaw = Arr::get($dados, 'data_hora_inicio');
+
+        if (! $userId || ! $servicoId || ! $dataHoraInicioRaw) {
+            throw new InvalidArgumentException('Os campos user_id, servico_id e data_hora_inicio são obrigatórios.');
+        }
+
+        $servico = Servico::findOrFail($servicoId);
+        $dataHoraInicio = Carbon::parse($dataHoraInicioRaw);
+
+        $verificacao = $this->verificarDisponibilidade(clone $dataHoraInicio, $servico->id);
+
+        if (! $verificacao['disponivel']) {
+            $motivo = $verificacao['motivo'] ?? 'Horário indisponível para agendamento.';
+            throw new InvalidArgumentException($motivo);
+        }
+
+        $tipoInformado = strtoupper((string) Arr::get($dados, 'tipo', ''));
+        $tipo = $tipoInformado ?: 'NORMAL';
+        $agendamentoOriginalId = Arr::get($dados, 'agendamento_original_id');
+
+        if ($tipo === 'NORMAL' && ! $agendamentoOriginalId) {
+            $agendamentoElegivel = $this->buscarAgendamentoElegivelParaRetoque($userId, $servico);
+
+            if ($agendamentoElegivel) {
+                $tipo = 'RETOQUE';
+                $agendamentoOriginalId = $agendamentoElegivel->getKey();
+            }
+        }
+
+        $valorBaseServico = (float) ($servico->preco ?? 0);
+        $valorRetoque = (float) ($servico->preco_retoque ?? 0);
+
+        if ($tipo === 'RETOQUE' && $valorRetoque > 0) {
+            $valorTotal = $valorRetoque;
+            $valorOriginal = $valorBaseServico > 0 ? $valorBaseServico : null;
+            $valorDesconto = $valorOriginal ? max(0, $valorOriginal - $valorTotal) : 0;
+        } else {
+            $valorTotal = (float) ($dados['valor_total'] ?? $valorBaseServico);
+            $valorOriginal = Arr::get($dados, 'valor_original');
+            $valorDesconto = (float) ($dados['valor_desconto'] ?? 0);
+        }
+
+        $valorTotal = round(max(0, $valorTotal), 2);
+        $valorSinal = array_key_exists('valor_sinal', $dados)
+            ? round(max(0, (float) $dados['valor_sinal']), 2)
+            : round($valorTotal * 0.30, 2);
+
+        $payload = array_merge([
+            'user_id' => $userId,
+            'servico_id' => $servico->id,
+            'agendamento_original_id' => $agendamentoOriginalId,
+            'status' => Arr::get($dados, 'status', 'PENDENTE'),
+            'tipo' => $tipo,
+            'data_hora_inicio' => $verificacao['data_hora_inicio'],
+            'data_hora_fim' => $verificacao['data_hora_fim'],
+            'valor_total' => $valorTotal,
+            'valor_sinal' => $valorSinal,
+            'valor_desconto' => $valorDesconto,
+            'valor_original' => $valorOriginal,
+            'forma_pagamento' => Arr::get($dados, 'forma_pagamento'),
+            'forma_pagamento_sinal' => Arr::get($dados, 'forma_pagamento_sinal', Arr::get($dados, 'forma_pagamento')),
+            'observacoes' => Arr::get($dados, 'observacoes'),
+            'metadados' => Arr::get($dados, 'metadados'),
+            'canal_origem' => Arr::get($dados, 'canal_origem', 'SITE'),
+        ], Arr::only($dados, [
+            'promocao_id',
+            'codigo_cupom_usado',
+        ]));
+
+        return Agendamento::create($payload);
+    }
+
+    /**
+     * Busca um agendamento concluído elegível para ser usado como referência de retoque.
+     */
+    protected function buscarAgendamentoElegivelParaRetoque(int $userId, Servico $servico): ?Agendamento
+    {
+        $diasLimite = (int) ($servico->dias_para_retoque ?? 0);
+        $precoRetoque = (float) ($servico->preco_retoque ?? 0);
+
+        if ($diasLimite <= 0 || $precoRetoque <= 0) {
+            return null;
+        }
+
+        $limite = Carbon::now()->subDays($diasLimite);
+
+        return Agendamento::query()
+            ->where('user_id', $userId)
+            ->where('servico_id', $servico->id)
+            ->where('status', 'CONCLUIDO')
+            ->where('data_hora_inicio', '>=', $limite)
+            ->orderByDesc('data_hora_inicio')
+            ->first();
+    }
+
+    /**
+     * Calcula a taxa de cancelamento aplicável para um agendamento.
+     */
+    public function calcularTaxaCancelamento(Agendamento $agendamento): float
+    {
+        $percentualConfigurado = Configuracao::get('taxa_cancelamento_percentual', 100);
+        $percentual = is_numeric($percentualConfigurado)
+            ? (float) $percentualConfigurado
+            : 100.0;
+
+        $valorSinal = (float) ($agendamento->valor_sinal ?? 0);
+
+        if ($valorSinal <= 0 || $percentual <= 0) {
+            return 0.0;
+        }
+
+        return round($valorSinal * ($percentual / 100), 2);
+    }
+
     /**
      * Verifica se um horário está disponível para agendamento
      */
