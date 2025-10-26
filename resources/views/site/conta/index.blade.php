@@ -45,7 +45,7 @@
                             <p class="text-xs text-neutral-600 font-medium">Agendamentos</p>
                         </div>
                         <div class="bg-gradient-to-br from-accent-50 to-accent-100 rounded-xl p-4 text-center">
-                            <p class="text-2xl font-bold text-accent-600">{{ $agendamentos->where('status', 'concluido')->count() }}</p>
+                            <p class="text-2xl font-bold text-accent-600">{{ $agendamentosConcluidos->count() }}</p>
                             <p class="text-xs text-neutral-600 font-medium">Concluídos</p>
                         </div>
                     </div>
@@ -170,14 +170,15 @@
                                             'concluido' => ['color' => 'emerald', 'icon' => 'M5 13l4 4L19 7'],
                                             'cancelado' => ['color' => 'red', 'icon' => 'M6 18L18 6M6 6l12 12'],
                                         ];
-                                        $config = $statusConfig[$agendamento->status] ?? $statusConfig['pendente'];
+                                        $statusChave = strtolower($agendamento->status);
+                                        $config = $statusConfig[$statusChave] ?? $statusConfig['pendente'];
                                     @endphp
 
                                     <span class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-{{ $config['color'] }}-100 border border-{{ $config['color'] }}-200 text-{{ $config['color'] }}-700 text-xs font-bold uppercase tracking-wider">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $config['icon'] }}" />
                                         </svg>
-                                        {{ $agendamento->status }}
+                                        {{ ucfirst(strtolower($agendamento->status)) }}
                                     </span>
 
                                     <div class="flex items-center gap-2">
@@ -187,7 +188,7 @@
                                         </span>
                                     </div>
 
-                                    @if($agendamento->status === 'concluido')
+                                    @if(strcasecmp($agendamento->status, 'concluido') === 0)
                                         @if($agendamento->avaliacao)
                                             <!-- Já avaliado -->
                                             <div class="flex items-center gap-2 px-4 py-2 bg-emerald-50 border border-emerald-200 rounded-lg">
@@ -242,25 +243,133 @@
                     @endforelse
                 </section>
 
-                <!-- Loyalty Program (Future) -->
-                <section class="bg-gradient-to-br from-accent-50 to-accent-100 rounded-3xl p-8 border border-accent-200 shadow-lg">
-                    <div class="flex items-start gap-4">
-                        <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-accent-500 to-accent-400 flex items-center justify-center flex-shrink-0 shadow-xl">
-                            <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
-                            </svg>
-                        </div>
-                        <div class="flex-1">
-                            <h3 class="text-xl font-bold text-neutral-900 mb-2">Programa de Fidelidade</h3>
-                            <p class="text-neutral-700 mb-4">
-                                Acumule pontos a cada serviço realizado e troque por descontos especiais! Em breve disponível.
-                            </p>
-                            <div class="inline-flex items-center gap-2 px-4 py-2 bg-white/70 rounded-lg text-sm font-semibold text-accent-700">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                <span>Em desenvolvimento</span>
+                <!-- Loyalty Program -->
+                <section class="bg-white rounded-3xl p-8 border border-accent-200 shadow-xl">
+                    @php
+                        $fidelidade = $resumoFidelidade ?? [];
+                        $saldoPontos = $fidelidade['pontos_atuais'] ?? 0;
+                        $saldoEmReais = $fidelidade['valor_resgate_disponivel'] ?? 0;
+                        $acumulado = $fidelidade['pontos_acumulados'] ?? 0;
+                        $nivelAtual = $fidelidade['nivel_atual']['nome'] ?? 'Essencial';
+                        $descricaoNivel = $fidelidade['nivel_atual']['descricao'] ?? 'Continue acumulando experiências para liberar benefícios especiais.';
+                        $proximoNivel = $fidelidade['proximo_nivel']['nome'] ?? null;
+                        $progressoNivel = $fidelidade['progresso_percentual'] ?? 0;
+                        $faltamProximo = $fidelidade['faltam_para_proximo'] ?? 0;
+                        $podeResgatar = $fidelidade['pode_resgatar'] ?? false;
+                        $resgateMinimo = $fidelidade['resgate_minimo'] ?? 0;
+                        $faltamResgate = $fidelidade['faltam_para_resgate'] ?? 0;
+                        $valorPorPonto = $fidelidade['valor_por_ponto'] ?? 0;
+                        $pontosPorReal = $fidelidade['pontos_por_real'] ?? 0;
+                        $percentualMaximo = $fidelidade['maximo_percentual_resgate'] ?? 0;
+                    @endphp
+
+                    <div class="flex flex-col xl:flex-row gap-8">
+                        <div class="xl:w-1/2 space-y-6">
+                            <div>
+                                <div class="flex flex-wrap items-center justify-between gap-3">
+                                    <h3 class="text-2xl font-bold text-neutral-900 flex items-center gap-2">
+                                        <svg class="w-6 h-6 text-accent-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a3 3 0 11-6 0 3 3 0 016 0zM5 21a7 7 0 0114 0H5z" />
+                                        </svg>
+                                        Programa de Fidelidade
+                                    </h3>
+                                    <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-accent-100 text-accent-700 text-xs font-bold uppercase tracking-wider">
+                                        {{ $nivelAtual }}
+                                    </span>
+                                </div>
+                                <p class="text-sm text-neutral-600 mt-2">{{ $descricaoNivel }}</p>
                             </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div class="bg-gradient-to-br from-accent-50 to-white border border-accent-200 rounded-2xl p-5 shadow-sm">
+                                    <p class="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-1">Pontos disponíveis</p>
+                                    <p class="text-3xl font-bold text-accent-600">{{ $saldoPontos }}</p>
+                                    <p class="text-sm text-neutral-500">≈ R$ {{ number_format($saldoEmReais, 2, ',', '.') }}</p>
+                                </div>
+                                <div class="bg-gradient-to-br from-primary-50 to-white border border-primary-200 rounded-2xl p-5 shadow-sm">
+                                    <p class="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-1">Pontos acumulados</p>
+                                    <p class="text-3xl font-bold text-primary-600">{{ $acumulado }}</p>
+                                    <p class="text-sm text-neutral-500">Ganhe {{ $pontosPorReal }} ponto(s) a cada R$ 1,00 investido</p>
+                                </div>
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between items-center text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-2">
+                                    <span>{{ $nivelAtual }}</span>
+                                    <span>{{ $proximoNivel ?? 'Nível Máximo' }}</span>
+                                </div>
+                                <div class="h-3 bg-accent-100 rounded-full overflow-hidden">
+                                    <div class="h-full bg-gradient-to-r from-accent-500 to-primary-500" style="width: {{ min(100, max(0, $proximoNivel ? $progressoNivel : 100)) }}%;"></div>
+                                </div>
+                                <p class="text-xs text-neutral-500 mt-2">
+                                    @if($proximoNivel)
+                                        Faltam <span class="font-semibold text-neutral-700">{{ $faltamProximo }}</span> pontos para alcançar o nível {{ $proximoNivel }}.
+                                    @else
+                                        Você atingiu o nível máximo. Obrigado por ser parte da nossa história! ✨
+                                    @endif
+                                </p>
+                            </div>
+
+                            <div class="space-y-3">
+                                <div class="bg-accent-50 border border-accent-200 rounded-xl p-4 flex items-start gap-3 text-sm text-neutral-600">
+                                    <svg class="w-5 h-5 text-accent-500 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 11-2 2h2a2 2 0 012-2zm0 0v2m0 8v2m0-2a2 2 0 11-2-2h2a2 2 0 012 2zm0 0v2m8-10h-2m2 0a2 2 0 11-2 2V8a2 2 0 012-2zm0 0h-2m-8 0H6m2 0a2 2 0 11-2 2V8a2 2 0 012-2zm0 0H6m0 8H4m2 0a2 2 0 11-2 2v-2a2 2 0 012-2zm0 0H4m16 0h-2m2 0a2 2 0 11-2 2v-2a2 2 0 012-2zm0 0h-2" />
+                                    </svg>
+                                    <div>
+                                        @if($podeResgatar)
+                                            <p>Você já pode usar seus pontos no próximo agendamento.</p>
+                                        @else
+                                            <p>Faltam <span class="font-semibold text-neutral-700">{{ $faltamResgate }}</span> pontos para liberar o resgate mínimo de {{ $resgateMinimo }} pontos.</p>
+                                        @endif
+                                        <p class="text-xs text-neutral-500 mt-1">Cada ponto vale R$ {{ number_format($valorPorPonto, 2, ',', '.') }} em desconto.</p>
+                                    </div>
+                                </div>
+                                <div class="bg-white border border-dashed border-neutral-200 rounded-xl p-4 text-xs text-neutral-500">
+                                    Combine cupons e pontos para potencializar seus benefícios. O desconto com pontos cobre até {{ (int) $percentualMaximo }}% do valor do serviço.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="xl:w-1/2 space-y-4">
+                            <div class="flex items-center justify-between">
+                                <h4 class="text-lg font-bold text-neutral-900 flex items-center gap-2">
+                                    <svg class="w-5 h-5 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M5 6h14M7 18h10" />
+                                    </svg>
+                                    Histórico de Pontos
+                                </h4>
+                                <span class="text-xs text-neutral-500 uppercase tracking-wider">Últimas movimentações</span>
+                            </div>
+
+                            <div class="space-y-3">
+                                @forelse($transacoesPontos as $transacao)
+                                    <div class="flex items-center justify-between gap-4 p-4 rounded-2xl border border-neutral-200 bg-neutral-50/60 shadow-sm">
+                                        <div class="flex-1">
+                                            <p class="text-sm font-semibold text-neutral-900">{{ $transacao->descricao ?? ($transacao->tipo === 'CREDITO' ? 'Pontos acumulados' : 'Resgate de pontos') }}</p>
+                                            <p class="text-xs text-neutral-500 mt-1">
+                                                {{ optional($transacao->registrado_em ?? $transacao->created_at)->format('d/m/Y H:i') }}
+                                                @if($transacao->agendamento_id)
+                                                    • Agendamento #{{ $transacao->agendamento_id }}
+                                                @endif
+                                            </p>
+                                        </div>
+                                        <div class="text-right">
+                                            <p class="text-sm font-bold {{ $transacao->tipo === 'CREDITO' ? 'text-emerald-600' : 'text-red-500' }}">
+                                                {{ $transacao->tipo === 'CREDITO' ? '+' : '-' }}{{ $transacao->pontos }} pts
+                                            </p>
+                                            @if($transacao->valor_referencia)
+                                                <p class="text-xs text-neutral-500">Ref.: R$ {{ number_format($transacao->valor_referencia, 2, ',', '.') }}</p>
+                                            @endif
+                                        </div>
+                                    </div>
+                                @empty
+                                    <div class="bg-white border border-dashed border-accent-200 rounded-2xl p-6 text-center text-sm text-neutral-500">
+                                        Nenhuma movimentação ainda. Conclua um agendamento para começar a acumular pontos. ✨
+                                    </div>
+                                @endforelse
+                            </div>
+
+                            <p class="text-xs text-neutral-500">Precisa do extrato completo? Fale com a gente pelo WhatsApp que enviamos rapidinho.</p>
                         </div>
                     </div>
                 </section>
@@ -293,7 +402,7 @@
     <!-- Modais de Avaliação -->
     @if($usuario && $agendamentos)
         @foreach($agendamentos as $agendamento)
-            @if($agendamento->status === 'concluido' && !$agendamento->avaliacao)
+            @if(strcasecmp($agendamento->status, 'concluido') === 0 && !$agendamento->avaliacao)
                 <div id="avaliar-{{ $agendamento->id }}" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 overflow-y-auto" onclick="if(event.target === this) closeModal('avaliar-{{ $agendamento->id }}')">
                     <div class="min-h-screen px-4 py-8 flex items-center justify-center">
                         <div class="bg-white rounded-3xl w-full max-w-2xl shadow-2xl relative my-8 animate-fadeIn" onclick="event.stopPropagation()" style="animation: modalSlideIn 0.3s ease-out;">

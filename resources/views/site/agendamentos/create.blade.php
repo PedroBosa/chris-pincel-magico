@@ -3,6 +3,7 @@
 @section('title', 'Agendar atendimento | Chris Pincel Mágico')
 
 @section('content')
+@php $resumoFidelidade = $resumoFidelidade ?? []; @endphp
 <div class="min-h-screen bg-gradient-to-br from-white via-primary-50 to-accent-50 py-12 overflow-x-hidden">
     <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <!-- Header -->
@@ -325,6 +326,103 @@
                         @enderror
                         <p class="text-xs text-neutral-500">Máximo 500 caracteres</p>
                     </div>
+
+                    @php
+                        $fidelidadeResumo = $resumoFidelidade ?? [];
+                        $saldoPontos = $fidelidadeResumo['pontos_atuais'] ?? 0;
+                        $valorEquivalente = $fidelidadeResumo['valor_resgate_disponivel'] ?? 0;
+                        $resgateMinimo = $fidelidadeResumo['resgate_minimo'] ?? 0;
+                        $faltamParaResgate = $fidelidadeResumo['faltam_para_resgate'] ?? 0;
+                    @endphp
+
+                    @auth
+                        <div class="bg-white rounded-2xl border-2 border-accent-200 p-6 space-y-4 shadow-sm">
+                            <div class="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                    <h3 class="text-lg font-bold text-neutral-900 flex items-center gap-2">
+                                        <svg class="w-5 h-5 text-accent-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+                                        </svg>
+                                        Usar pontos de fidelidade
+                                    </h3>
+                                    <p class="text-sm text-neutral-600">
+                                        Saldo disponível: <span class="font-semibold text-accent-600">{{ $saldoPontos }} pts</span>
+                                        (≈ R$ {{ number_format($valorEquivalente, 2, ',', '.') }})
+                                    </p>
+                                </div>
+                                <span class="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-accent-100 text-accent-700">
+                                    Opcional
+                                </span>
+                            </div>
+
+                            <div class="space-y-3">
+                                <label for="usar_pontos" class="text-sm font-semibold text-neutral-800 flex items-center gap-2">
+                                    <svg class="w-4 h-4 text-accent-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                                    </svg>
+                                    Quantos pontos deseja utilizar agora?
+                                </label>
+                                <div class="flex flex-col sm:flex-row gap-3">
+                                    <input
+                                        type="number"
+                                        name="usar_pontos"
+                                        id="usar_pontos"
+                                        min="0"
+                                        step="1"
+                                        inputmode="numeric"
+                                        value="{{ old('usar_pontos', 0) }}"
+                                        class="w-full sm:max-w-xs px-4 py-3 border-2 border-accent-200 rounded-xl focus:border-accent-500 focus:ring-4 focus:ring-accent-100 text-neutral-900"
+                                        placeholder="Ex.: {{ max($resgateMinimo, 50) }}"
+                                        data-resgate-minimo="{{ $resgateMinimo }}"
+                                        data-pontos-disponiveis="{{ $saldoPontos }}"
+                                    >
+                                    <div class="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            id="usar-pontos-max"
+                                            class="{{ $saldoPontos <= 0 ? 'hidden ' : '' }}px-4 py-2 rounded-xl bg-accent-500 text-white text-sm font-semibold shadow hover:bg-accent-600 transition-all"
+                                        >
+                                            Usar máximo
+                                        </button>
+                                        <button
+                                            type="button"
+                                            id="limpar-pontos"
+                                            class="px-4 py-2 rounded-xl border-2 border-neutral-300 text-neutral-700 text-sm font-semibold hover:border-neutral-400 transition-all"
+                                        >
+                                            Não usar agora
+                                        </button>
+                                    </div>
+                                </div>
+                                <p id="usar-pontos-feedback" class="text-xs text-neutral-500">
+                                    @if($resgateMinimo > 0)
+                                        Resgate mínimo: {{ $resgateMinimo }} pontos (≈ R$ {{ number_format($resgateMinimo * ($fidelidadeResumo['valor_por_ponto'] ?? 0), 2, ',', '.') }}).
+                                    @else
+                                        Escolha livremente quantos pontos deseja utilizar.
+                                    @endif
+                                </p>
+                                <p id="usar-pontos-alerta" class="hidden text-xs font-semibold text-red-600"></p>
+                                @if($saldoPontos < $resgateMinimo && $resgateMinimo > 0)
+                                    <p class="text-xs text-neutral-500">
+                                        Ainda faltam <span class="font-semibold text-neutral-700">{{ $faltamParaResgate }}</span> pontos para atingir o resgate mínimo. Continue acumulando! ✨
+                                    </p>
+                                @endif
+                                @error('usar_pontos')
+                                    <p class="text-sm text-red-600">{{ $message }}</p>
+                                @enderror
+                            </div>
+                        </div>
+                    @else
+                        <div class="bg-white rounded-2xl border-2 border-dashed border-accent-200 p-6 text-sm text-neutral-600">
+                            <p class="font-semibold text-neutral-900 mb-1">Programa de fidelidade</p>
+                            <p>Acesse sua conta para usar pontos acumulados como desconto imediato nos agendamentos.</p>
+                            <a href="{{ route('login') }}" class="inline-flex items-center gap-2 mt-3 text-accent-600 font-semibold hover:text-accent-700">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14m-7-7l7 7-7 7" />
+                                </svg>
+                                Entrar agora
+                            </a>
+                        </div>
+                    @endauth
 
                     <!-- Resumo de Valores -->
                     <div class="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-2xl p-6 border-2 border-emerald-200">
@@ -678,6 +776,16 @@ document.addEventListener('keydown', function(e) {
 // Variáveis globais para armazenar dados da promoção
 let promocaoAtual = null;
 let horarioSelecionado = null;
+const fidelidadeConfig = @json([
+    'habilitado' => auth()->check(),
+    'pontosDisponiveis' => $resumoFidelidade['pontos_atuais'] ?? 0,
+    'valorPorPonto' => $resumoFidelidade['valor_por_ponto'] ?? 0,
+    'resgateMinimo' => $resumoFidelidade['resgate_minimo'] ?? 0,
+    'maxPercentualResgate' => $resumoFidelidade['maximo_percentual_resgate'] ?? 0,
+    'pontosPorReal' => $resumoFidelidade['pontos_por_real'] ?? 0,
+]);
+
+window.fidelidadeConfig = fidelidadeConfig;
 
 // Função para buscar horários disponíveis
 async function buscarHorariosDisponiveis() {
@@ -789,11 +897,43 @@ document.getElementById('data').addEventListener('change', function() {
     buscarHorariosDisponiveis();
 });
 
+const pontosInputElement = document.getElementById('usar_pontos');
+const botaoUsarMax = document.getElementById('usar-pontos-max');
+const botaoLimparPontos = document.getElementById('limpar-pontos');
+
+if (pontosInputElement) {
+    pontosInputElement.addEventListener('input', atualizarResumoValores);
+    pontosInputElement.addEventListener('change', atualizarResumoValores);
+}
+
+if (botaoUsarMax && pontosInputElement) {
+    botaoUsarMax.addEventListener('click', () => {
+        const maxPermitido = parseInt(pontosInputElement.dataset.maxPermitido || '0', 10);
+        if (maxPermitido > 0) {
+            pontosInputElement.value = maxPermitido;
+            atualizarResumoValores();
+        }
+    });
+}
+
+if (botaoLimparPontos && pontosInputElement) {
+    botaoLimparPontos.addEventListener('click', () => {
+        pontosInputElement.value = 0;
+        atualizarResumoValores();
+    });
+}
+
 // Função para atualizar o resumo de valores
 function atualizarResumoValores() {
     const servicoSelect = document.getElementById('servico');
     const resumoDiv = document.getElementById('resumo-valores');
-    
+    const pontosInput = document.getElementById('usar_pontos');
+    const feedback = document.getElementById('usar-pontos-feedback');
+    const alerta = document.getElementById('usar-pontos-alerta');
+    const botaoMax = document.getElementById('usar-pontos-max');
+    const botaoLimpar = document.getElementById('limpar-pontos');
+    const config = window.fidelidadeConfig ?? { habilitado: false };
+
     if (!servicoSelect || !servicoSelect.value) {
         resumoDiv.innerHTML = `
             <div class="text-center py-8">
@@ -803,50 +943,155 @@ function atualizarResumoValores() {
                 <p class="text-sm text-emerald-600">Selecione um serviço para ver os valores</p>
             </div>
         `;
+
+        if (pontosInput) {
+            pontosInput.disabled = true;
+            pontosInput.value = 0;
+            if (feedback) {
+                feedback.textContent = 'Selecione um serviço para saber quantos pontos pode resgatar.';
+            }
+            if (alerta) {
+                alerta.classList.add('hidden');
+                alerta.textContent = '';
+            }
+            if (botaoMax) {
+                botaoMax.classList.add('hidden');
+            }
+        }
+
         return;
     }
-    
+
     const selectedOption = servicoSelect.options[servicoSelect.selectedIndex];
-    const preco = parseFloat(selectedOption.dataset.preco);
-    
-    let valorDesconto = 0;
+    const preco = parseFloat(selectedOption.dataset.preco) || 0;
+
+    let valorDescontoPromocao = 0;
     if (promocaoAtual && promocaoAtual.valor_desconto) {
-        valorDesconto = promocaoAtual.valor_desconto;
+        valorDescontoPromocao = parseFloat(promocaoAtual.valor_desconto) || 0;
     }
-    
-    const valorFinal = Math.max(0, preco - valorDesconto);
-    const valorSinal = valorFinal * 0.30;
-    const valorRestante = valorFinal - valorSinal;
-    
-    let htmlDesconto = '';
-    if (valorDesconto > 0) {
-        htmlDesconto = `
+
+    const valorBase = Math.max(0, preco - valorDescontoPromocao);
+
+    let valorDescontoPontos = 0;
+    let pontosAplicados = 0;
+    let maxPontosPermitidos = 0;
+
+    if (pontosInput && config.habilitado) {
+        const saldoDisponivel = Number(config.pontosDisponiveis) || 0;
+        const resgateMinimo = Number(config.resgateMinimo) || 0;
+        const valorPorPonto = Number(config.valorPorPonto) || 0;
+        const maxPercentual = Number(config.maxPercentualResgate) || 0;
+
+        const maxPorValor = valorPorPonto > 0 && maxPercentual > 0
+            ? Math.floor((valorBase * (maxPercentual / 100)) / valorPorPonto)
+            : 0;
+
+        maxPontosPermitidos = Math.max(0, Math.min(saldoDisponivel, maxPorValor));
+
+        if (valorBase <= 0 || valorPorPonto <= 0 || maxPontosPermitidos <= 0) {
+            pontosInput.disabled = saldoDisponivel <= 0;
+            pontosInput.dataset.maxPermitido = 0;
+            pontosInput.max = 0;
+            pontosInput.value = 0;
+
+            if (feedback) {
+                if (saldoDisponivel > 0 && resgateMinimo > 0) {
+                    feedback.textContent = `Este serviço permite resgates a partir de ${resgateMinimo} pontos. Continue acumulando!`;
+                } else if (saldoDisponivel > 0) {
+                    feedback.textContent = 'Selecione um serviço diferente para utilizar seus pontos.';
+                } else {
+                    feedback.textContent = 'Você ainda não possui pontos suficientes para resgatar.';
+                }
+            }
+
+            if (botaoMax) {
+                botaoMax.classList.add('hidden');
+            }
+        } else {
+            pontosInput.disabled = false;
+            pontosInput.dataset.maxPermitido = maxPontosPermitidos;
+            pontosInput.max = maxPontosPermitidos;
+
+            if (feedback) {
+                const valorMaximo = (maxPontosPermitidos * valorPorPonto).toFixed(2).replace('.', ',');
+                feedback.textContent = `Você pode usar até ${maxPontosPermitidos} pontos (R$ ${valorMaximo}) neste agendamento.`;
+            }
+
+            if (botaoMax) {
+                botaoMax.classList.toggle('hidden', maxPontosPermitidos <= 0);
+            }
+        }
+
+        if (botaoLimpar) {
+            botaoLimpar.classList.toggle('hidden', saldoDisponivel <= 0);
+        }
+
+        const pontosDesejados = Math.min(Number(pontosInput.value || 0), maxPontosPermitidos);
+
+        if (alerta) {
+            alerta.classList.add('hidden');
+            alerta.textContent = '';
+        }
+
+        if (pontosDesejados > 0) {
+            if (pontosDesejados < resgateMinimo) {
+                if (alerta) {
+                    alerta.textContent = `O resgate mínimo é de ${resgateMinimo} pontos.`;
+                    alerta.classList.remove('hidden');
+                }
+            } else {
+                pontosAplicados = pontosDesejados;
+                valorDescontoPontos = Math.min(valorBase, pontosAplicados * valorPorPonto);
+            }
+        }
+    }
+
+    const temDesconto = valorDescontoPromocao > 0 || valorDescontoPontos > 0;
+    const valorFinal = Math.max(0, valorBase - valorDescontoPontos);
+    const valorSinal = Math.max(0, valorFinal * 0.30);
+    const valorRestante = Math.max(0, valorFinal - valorSinal);
+    const pontosPrevistos = config.habilitado
+        ? Math.max(0, Math.floor(valorFinal * (Number(config.pontosPorReal) || 0)))
+        : 0;
+    const valorPrevistoPontos = pontosPrevistos * (Number(config.valorPorPonto) || 0);
+
+    let detalhesHtml = `
+        <div class="flex justify-between items-center text-sm">
+            <span class="text-neutral-600">${temDesconto ? 'Preço Original:' : 'Preço do Serviço:'}</span>
+            <span class="font-semibold ${temDesconto ? 'text-neutral-500 line-through' : 'text-neutral-900'}">R$ ${preco.toFixed(2).replace('.', ',')}</span>
+        </div>
+    `;
+
+    if (valorDescontoPromocao > 0) {
+        detalhesHtml += `
             <div class="flex justify-between items-center text-sm">
-                <span class="text-neutral-600">Preço Original:</span>
-                <span class="font-semibold text-neutral-500 line-through">R$ ${preco.toFixed(2).replace('.', ',')}</span>
-            </div>
-            <div class="flex justify-between items-center text-sm">
-                <span class="text-green-600 font-semibold">Desconto:</span>
-                <span class="font-bold text-green-600">- R$ ${valorDesconto.toFixed(2).replace('.', ',')}</span>
+                <span class="text-green-600 font-semibold">Desconto promocional:</span>
+                <span class="font-bold text-green-600">- R$ ${valorDescontoPromocao.toFixed(2).replace('.', ',')}</span>
             </div>
         `;
     }
-    
+
+    if (valorDescontoPontos > 0) {
+        detalhesHtml += `
+            <div class="flex justify-between items-center text-sm">
+                <span class="text-accent-600 font-semibold">Desconto com pontos:</span>
+                <span class="font-bold text-accent-600">- R$ ${valorDescontoPontos.toFixed(2).replace('.', ',')}</span>
+            </div>
+        `;
+    }
+
+    const classeValorTotal = temDesconto ? 'text-green-600' : 'text-emerald-700';
+
     resumoDiv.innerHTML = `
-        <div class="space-y-3">
-            ${valorDesconto > 0 ? htmlDesconto : `
-                <div class="flex justify-between items-center text-sm">
-                    <span class="text-neutral-600">Preço do Serviço:</span>
-                    <span class="font-semibold text-neutral-900">R$ ${preco.toFixed(2).replace('.', ',')}</span>
-                </div>
-            `}
-            
+        <div class="space-y-4">
+            ${detalhesHtml}
+
             <div class="flex justify-between items-center pt-3 border-t-2 border-emerald-300">
                 <span class="font-bold text-neutral-900">Valor Total:</span>
-                <span class="text-2xl font-bold ${valorDesconto > 0 ? 'text-green-600' : 'text-emerald-700'}">R$ ${valorFinal.toFixed(2).replace('.', ',')}</span>
+                <span class="text-2xl font-bold ${classeValorTotal}">R$ ${valorFinal.toFixed(2).replace('.', ',')}</span>
             </div>
-            
-            <div class="bg-white rounded-lg p-4 mt-2 space-y-2">
+
+            <div class="bg-white rounded-lg p-4 space-y-2 border border-emerald-200">
                 <div class="flex justify-between items-center">
                     <span class="text-sm text-neutral-600">Sinal (30%):</span>
                     <span class="text-lg font-bold text-primary-600">R$ ${valorSinal.toFixed(2).replace('.', ',')}</span>
@@ -856,15 +1101,18 @@ function atualizarResumoValores() {
                     <span class="text-sm text-neutral-700">R$ ${valorRestante.toFixed(2).replace('.', ',')}</span>
                 </div>
             </div>
+
+            ${config.habilitado && pontosPrevistos > 0 ? `
+                <div class="bg-white border border-dashed border-accent-200 rounded-lg p-3 text-xs text-neutral-600">
+                    Ao concluir este atendimento você soma <span class="font-semibold text-neutral-800">${pontosPrevistos}</span> ponto(s)
+                    (≈ R$ ${valorPrevistoPontos.toFixed(2).replace('.', ',')}).
+                </div>
+            ` : ''}
         </div>
     `;
 }
 
 // Atualiza resumo quando seleciona serviço
-document.getElementById('servico').addEventListener('change', function() {
-    atualizarResumoValores();
-});
-
 // Atualiza resumo ao carregar a página (se já houver serviço selecionado)
 document.addEventListener('DOMContentLoaded', function() {
     atualizarResumoValores();

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\ProgramaFidelidadeService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,6 +12,37 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 class Agendamento extends Model
 {
     use HasFactory;
+
+    protected static function booted(): void
+    {
+        static::updated(function (self $agendamento): void {
+            if (! $agendamento->wasChanged('status')) {
+                return;
+            }
+
+            $service = app(ProgramaFidelidadeService::class);
+            $statusAtual = strtoupper((string) $agendamento->status);
+            $statusAnterior = strtoupper((string) $agendamento->getOriginal('status'));
+
+            if ($statusAtual === 'CONCLUIDO') {
+                $service->registrarCreditoConclusao($agendamento);
+            }
+
+            if ($statusAnterior === 'CONCLUIDO' && $statusAtual !== 'CONCLUIDO') {
+                $service->estornarCreditoConclusao($agendamento);
+            }
+
+            if (in_array($statusAtual, ['CANCELADO', 'NO_SHOW'], true)) {
+                $service->estornarDebitoResgate($agendamento);
+            }
+        });
+
+        static::deleted(function (self $agendamento): void {
+            $service = app(ProgramaFidelidadeService::class);
+            $service->estornarCreditoConclusao($agendamento);
+            $service->estornarDebitoResgate($agendamento);
+        });
+    }
 
     protected $fillable = [
         'user_id',

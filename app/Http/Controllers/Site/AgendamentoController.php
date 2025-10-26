@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Agendamento;
 use App\Models\Servico;
 use App\Services\AgendamentoService;
+use App\Services\ProgramaFidelidadeService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
@@ -14,7 +15,8 @@ use Illuminate\Support\Facades\Auth;
 class AgendamentoController extends Controller
 {
     public function __construct(
-        protected AgendamentoService $agendamentoService
+        protected AgendamentoService $agendamentoService,
+        protected ProgramaFidelidadeService $fidelidadeService
     ) {}
 
     public function create(Request $request): View
@@ -24,7 +26,18 @@ class AgendamentoController extends Controller
             ->orderBy('nome')
             ->get(['id', 'nome', 'duracao_minutos', 'preco', 'preco_retoque']);
 
-        return view('site.agendamentos.create', compact('servicos'));
+        $usuario = $request->user();
+        $resumoFidelidade = null;
+
+        if ($usuario) {
+            $carteira = $this->fidelidadeService->obterOuCriarCarteira($usuario);
+            $resumoFidelidade = $this->fidelidadeService->montarResumoCarteira($carteira);
+        }
+
+        return view('site.agendamentos.create', [
+            'servicos' => $servicos,
+            'resumoFidelidade' => $resumoFidelidade,
+        ]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -37,6 +50,7 @@ class AgendamentoController extends Controller
             'hora' => ['required', 'date_format:H:i'],
             'forma_pagamento' => ['required', 'in:pix,credit_card,debit_card'],
             'observacoes' => ['nullable', 'string', 'max:500'],
+            'usar_pontos' => ['nullable', 'integer', 'min:0'],
         ]);
 
         // VALIDAÇÃO 1: Limitar agendamentos simultâneos pendentes
@@ -124,8 +138,41 @@ class AgendamentoController extends Controller
             }
         }
 
-        $valorFinal = max(0, $valorOriginal - $valorDesconto);
-        $valorSinal = $valorFinal * 0.30; // 30% de sinal
+        $valorBase = max(0, $valorOriginal - $valorDesconto);
+        $valorFinal = $valorBase;
+        $valorDescontoFidelidade = 0.0;
+        $pontosResgatados = 0;
+        $metadadosExtras = [];
+        $carteiraFidelidade = null;
+        $pontosSolicitados = (int) ($validated['usar_pontos'] ?? 0);
+
+        if (Auth::check() && $pontosSolicitados > 0) {
+            $carteiraFidelidade = $this->fidelidadeService->obterOuCriarCarteira(Auth::user());
+            $resgate = $this->fidelidadeService->validarResgate($carteiraFidelidade, $pontosSolicitados, $valorBase);
+
+            if (! $resgate['valido']) {
+                $mensagemErro = $resgate['mensagem'] ?? 'Não foi possível aplicar os seus pontos no momento.';
+
+                return back()
+                    ->withInput()
+                    ->withErrors(['usar_pontos' => $mensagemErro])
+                    ->with('error', $mensagemErro);
+            }
+
+            $pontosResgatados = $resgate['pontos'];
+            $valorDescontoFidelidade = $resgate['valor_desconto'];
+            $valorFinal = max(0, $valorBase - $valorDescontoFidelidade);
+            $valorDesconto += $valorDescontoFidelidade;
+
+            $metadadosExtras['fidelidade'] = [
+                'pontos_resgatados' => $pontosResgatados,
+                'valor_desconto_pontos' => $valorDescontoFidelidade,
+            ];
+        }
+
+        $valorFinal = round($valorFinal, 2);
+        $valorDesconto = round($valorDesconto, 2);
+        $valorSinal = round($valorFinal * 0.30, 2); // 30% de sinal
 
         // Usa as datas validadas do service
         $dataHoraFim = $verificacao['data_hora_fim'];
@@ -141,14 +188,24 @@ class AgendamentoController extends Controller
             'status' => 'PENDENTE',
             'tipo' => 'NORMAL',
             'canal_origem' => 'SITE',
-            'valor_original' => $promocaoId ? $valorOriginal : null,
+            'valor_original' => ($promocaoId || $pontosResgatados > 0) ? $valorOriginal : null,
             'valor_desconto' => $valorDesconto,
             'valor_total' => $valorFinal,
             'valor_sinal' => $valorSinal,
             'forma_pagamento' => $validated['forma_pagamento'],
             'forma_pagamento_sinal' => $validated['forma_pagamento'],
             'observacoes' => $validated['observacoes'] ?? null,
+            'metadados' => ! empty($metadadosExtras) ? $metadadosExtras : null,
         ]);
+
+        if ($pontosResgatados > 0 && $carteiraFidelidade) {
+            $this->fidelidadeService->registrarDebitoResgate(
+                $agendamento,
+                $carteiraFidelidade,
+                $pontosResgatados,
+                $valorDescontoFidelidade
+            );
+        }
 
         return redirect()
             ->route('agendamentos.create')
