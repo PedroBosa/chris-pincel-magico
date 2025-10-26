@@ -3,7 +3,10 @@
 @section('title', 'Agendar atendimento | Chris Pincel Mágico')
 
 @section('content')
-@php $resumoFidelidade = $resumoFidelidade ?? []; @endphp
+@php
+    $resumoFidelidade = $resumoFidelidade ?? [];
+    $carregamentoServicosErro = $carregamentoServicosErro ?? false;
+@endphp
 <div class="min-h-screen bg-gradient-to-br from-white via-primary-50 to-accent-50 py-12 overflow-x-hidden">
     <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <!-- Header -->
@@ -73,6 +76,20 @@
                             </svg>
                             <span>Escolha o Serviço</span>
                         </label>
+                        @if($carregamentoServicosErro)
+                            <div class="bg-amber-50 border-2 border-amber-200 rounded-xl p-4 flex items-start gap-3">
+                                <div class="w-6 h-6 bg-amber-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-amber-800 font-medium">
+                                        Não foi possível carregar os serviços no momento. Tente novamente mais tarde ou entre em contato pelo WhatsApp.
+                                    </p>
+                                </div>
+                            </div>
+                        @endif
                         <div class="relative">
                             <select 
                                 id="servico" 

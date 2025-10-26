@@ -1,6 +1,8 @@
 <?php
 
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 if (! function_exists('config_site')) {
     /**
@@ -13,21 +15,37 @@ if (! function_exists('config_site')) {
     function config_site(string $chave, $default = null)
     {
         if (! isset($GLOBALS['config_site_runtime']) || ! is_array($GLOBALS['config_site_runtime'])) {
-            $GLOBALS['config_site_runtime'] = Cache::rememberForever('config_site:all', function () {
-                return \App\Models\Configuracao::query()
-                    ->select(['chave', 'valor'])
-                    ->get()
-                    ->mapWithKeys(function ($configuracao) {
-                        $valor = $configuracao->valor;
+            try {
+                $GLOBALS['config_site_runtime'] = Cache::rememberForever('config_site:all', function () {
+                    try {
+                        return \App\Models\Configuracao::query()
+                            ->select(['chave', 'valor'])
+                            ->get()
+                            ->mapWithKeys(function ($configuracao) {
+                                $valor = $configuracao->valor;
 
-                        if (is_array($valor) && array_key_exists('valor', $valor)) {
-                            $valor = $valor['valor'];
-                        }
+                                if (is_array($valor) && array_key_exists('valor', $valor)) {
+                                    $valor = $valor['valor'];
+                                }
 
-                        return [$configuracao->chave => $valor];
-                    })
-                    ->toArray();
-            });
+                                return [$configuracao->chave => $valor];
+                            })
+                            ->toArray();
+                    } catch (QueryException|\Throwable $e) {
+                        Log::warning('Falha ao carregar configurações do site', [
+                            'mensagem' => $e->getMessage(),
+                        ]);
+
+                        return [];
+                    }
+                });
+            } catch (QueryException|\Throwable $e) {
+                Log::warning('Falha ao acessar cache de configurações do site', [
+                    'mensagem' => $e->getMessage(),
+                ]);
+
+                $GLOBALS['config_site_runtime'] = [];
+            }
         }
 
         return $GLOBALS['config_site_runtime'][$chave] ?? $default;

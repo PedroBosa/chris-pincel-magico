@@ -11,6 +11,9 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class AgendamentoController extends Controller
 {
@@ -21,10 +24,21 @@ class AgendamentoController extends Controller
 
     public function create(Request $request): View
     {
-        $servicos = Servico::query()
-            ->where('ativo', true)
-            ->orderBy('nome')
-            ->get(['id', 'nome', 'duracao_minutos', 'preco', 'preco_retoque']);
+        $carregamentoServicosErro = false;
+
+        try {
+            $servicos = Servico::query()
+                ->where('ativo', true)
+                ->orderBy('nome')
+                ->get(['id', 'nome', 'duracao_minutos', 'preco', 'preco_retoque']);
+        } catch (QueryException|Throwable $e) {
+            Log::error('Falha ao carregar serviços para agendamento', [
+                'mensagem' => $e->getMessage(),
+            ]);
+
+            $servicos = collect();
+            $carregamentoServicosErro = true;
+        }
 
         $usuario = $request->user();
         $resumoFidelidade = null;
@@ -37,6 +51,7 @@ class AgendamentoController extends Controller
         return view('site.agendamentos.create', [
             'servicos' => $servicos,
             'resumoFidelidade' => $resumoFidelidade,
+            'carregamentoServicosErro' => $carregamentoServicosErro,
         ]);
     }
 
