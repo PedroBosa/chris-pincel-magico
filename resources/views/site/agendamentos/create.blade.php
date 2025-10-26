@@ -793,14 +793,14 @@ document.addEventListener('keydown', function(e) {
 // Variáveis globais para armazenar dados da promoção
 let promocaoAtual = null;
 let horarioSelecionado = null;
-const fidelidadeConfig = @json([
+const fidelidadeConfig = {!! json_encode([
     'habilitado' => auth()->check(),
     'pontosDisponiveis' => $resumoFidelidade['pontos_atuais'] ?? 0,
     'valorPorPonto' => $resumoFidelidade['valor_por_ponto'] ?? 0,
     'resgateMinimo' => $resumoFidelidade['resgate_minimo'] ?? 0,
     'maxPercentualResgate' => $resumoFidelidade['maximo_percentual_resgate'] ?? 0,
     'pontosPorReal' => $resumoFidelidade['pontos_por_real'] ?? 0,
-]);
+], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) !!};
 
 window.fidelidadeConfig = fidelidadeConfig;
 
